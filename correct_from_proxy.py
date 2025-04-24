@@ -27,6 +27,7 @@ MIN_SIZE = 20000
 
 #  import packages
 import argparse
+import os
 import rawpy
 import cv2
 from plantcv import plantcv as pcv
@@ -42,8 +43,8 @@ def cli():
     Parse command line arguments.
     '''
 
-    global target_image_path, proxy_image_path, ref_image_path, ref_image_path, \
-        output_path, review_dir_path, icc_profile_path
+    global target_image_path, proxy_image_path, ref_image_path, \
+        ref_image_path, output_path, review_dir_path, icc_profile_path
 
     parser = argparse.ArgumentParser(description="Batch-color correct RAW \
         image files.")
@@ -68,14 +69,24 @@ def cli():
     args = parser.parse_args()
 
     # reassign variable names
-    target_image_path, proxy_image_path, ref_image_path, ref_image_path, \
-        output_path, review_dir_path, icc_profile_path = \
+    target_image_path, proxy_image_path, ref_image_path, output_path, \
+        review_dir_path, icc_profile_path = \
         args.target_image_path, args.proxy_image_path, args.ref_image_path, \
         args.output_path, args.review_dir_path, args.icc_profile_path
 
 
 
 ## FUNCTIONS
+
+def check_make_dir(dir_path):
+
+    '''
+    Check if a directory exists, if not, create it.
+    '''
+
+    if not os.path.isdir(dir_path):
+        os.mkdir(dir_path)
+
 
 def detect_color_card(image_path, ADAPTIVE_METHOD, BLOCK_SIZE, RADIUS, \
                       MIN_SIZE):
@@ -132,7 +143,12 @@ def get_ref_color_matrix(ref_image_path):
     # get color profile from reference image 
     ref_card_mask = detect_color_card(
         ref_image_path,
+        ADAPTIVE_METHOD, 
+        BLOCK_SIZE, 
+        RADIUS,
+        MIN_SIZE
     )
+
 
     # disable debug/print
     pcv.params.debug = None
@@ -165,9 +181,17 @@ def get_ref_color_matrix(ref_image_path):
 
 def proxy_correct(proxy_image_path, target_image_path, ref_color_matrix):
 
+    '''
+    Fetch color matrix from proxy image, apply corrections to taget image.
+    '''
+
     # detect color card
     card_mask = detect_color_card(
         proxy_image_path,
+            ADAPTIVE_METHOD, 
+            BLOCK_SIZE, 
+            RADIUS,
+            MIN_SIZE,
     )
 
     # disable debug/print
@@ -227,11 +251,16 @@ def proxy_correct(proxy_image_path, target_image_path, ref_color_matrix):
 
 
 
-
 ## MAIN
 
 def main():
+
+    # parse arguments
+    cli()
     
+    # make directories if they don't exist
+    check_make_dir(review_dir_path)
+
     # set up PlantCV (i.e. set debugging directory )
     pcv.params.debug_outdir = review_dir_path
 
@@ -252,7 +281,7 @@ def main():
     # save
     pil_img = Image.fromarray(rgb_corr)
     pil_img.save(
-        output_path,,
+        output_path,
         format="TIFF",
         icc_profile=icc_profile,
         compression='tiff_adobe_deflate',
