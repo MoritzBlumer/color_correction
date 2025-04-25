@@ -46,8 +46,8 @@ def cli():
     global target_image_path, proxy_image_path, ref_image_path, \
         ref_image_path, output_path, review_dir_path, icc_profile_path
 
-    parser = argparse.ArgumentParser(description="Batch-color correct RAW \
-        image files.")
+    parser = argparse.ArgumentParser(description="Infer color corrections from \
+        proxy image,  apply them to target image.")
 
     # add arguments
     parser.add_argument('target_image_path', type=str, help='Path to the RAW \
