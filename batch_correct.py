@@ -50,21 +50,19 @@ def cli():
 
     # add arguments
     parser.add_argument('input_dir_path', type=str, help='Path to the input\
-        directory containing input RAW files')
+        directory containing RAW files')
     parser.add_argument('output_dir_path', type=str, help='Path to the output \
-        directory which will contain color-corrected TIFF files')
+        directory to which color-corrected TIFF files will be saved')
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
         debug directory which will contain PNGs with the masked color card for \
         review')
     parser.add_argument('ref_image_path', type=str, help='Path to the a single \
-        RAW image with color card that will serve as the reference for all \
-        input RAW files')
-    parser.add_argument('raw_suffix', type=str, help='RAW suffix, this could \
-        be be e.g. "ARW" (Sony), "NEF" (Nikon), "CR3" or any other format \
-        accepted by rawpy')
-    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC \
-        color profile to be embedded in the output TIFFs, for example the sRGB \
-        profile supplied at data/sRGB_profile.icc can be specified.')
+        RAW image that will serve as the reference for all input RAW files')
+    parser.add_argument('raw_suffix', type=str, help='RAW suffix used, this could \
+        be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others (check rawpy)')
+    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC color \
+        profile to be embedded in the output TIFFs, for example the supplied sRGB \
+        profile: data/sRGB_profile.icc')
 
     # parse
     args = parser.parse_args()
