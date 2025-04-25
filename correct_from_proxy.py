@@ -52,19 +52,19 @@ def cli():
     # add arguments
     parser.add_argument('target_image_path', type=str, help='Path to the RAW \
         image to apply corrections to')
-    parser.add_argument('proxy_image_path', type=str, help='Path to the RAW \
-        image used to infer corrections from')
+    parser.add_argument('proxy_image_path', type=str, help='Path to the (proxy) \
+        RAW image used to infer corrections from')
     parser.add_argument('ref_image_path', type=str, help='Path to the RAW \
         image serving as the reference for for color correction')
-    parser.add_argument('output_path', type=str, help='Path to the output TIFF \
-        file (color-corrected version of the target image)')
+    parser.add_argument('output_path', type=str, help='Path to the \
+        color-corrected output TIFF')
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
         debug directory which will contain PNGs with the masked color card for \
         review')
-    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC \
-        color profile to be embedded in the output TIFFs, for example the sRGB \
-        profile supplied at data/sRGB_profile.icc can be specified.')
-
+    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC color \
+        profile to be embedded in the output TIFFs, for example the supplied sRGB \
+        profile: data/sRGB_profile.icc')
+    
     # parse
     args = parser.parse_args()
 
