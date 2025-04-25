@@ -11,7 +11,7 @@ Batch-correct color and exposure among a set of RAW (e.g. .ARW, .NEF, .CR3) imag
 ## Dependencies
 [PlantCV](https://github.com/danforthcenter/plantcv) is used to detect the color card, to extract color matrices and to apply corrections. [Rawpy](https://github.com/letmaik/rawpy) is used to read in RAW files and [Pillow](https://github.com/python-pillow/Pillow) to write output TIFFs. [OpenCV](https://github.com/opencv/opencv) is used to rearrange color channels in the scripts and PlantCV heavily relies on OpenCV.
 
-All dependencies can be installed with conda/mamba
+All dependencies can be installed with conda/mamba:
 
 ```
 mamba install -c conda-forge plantcv opencv rawpy pillow 
@@ -23,7 +23,9 @@ mamba install -c conda-forge plantcv opencv rawpy pillow
 
 ###  Step 1:  Set up working directories for batch correction
 
-Setup three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved (e.g. "review"). Images in review are not color-corrected and should be manually checked to make sure the color card was detected correctly. Below is an exemplary directory structure.
+Setup three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved per input file (e.g. "review"). The purpose of the PNG images written to the review directory is to manually check that the color card was detected correctly in each image. 
+
+Below is an exemplary directory structure:
 ```
 ├── raw
 │   ├── image_01.ARW
@@ -49,7 +51,7 @@ Execute ```batch_correct.py```, which expects 6 positional argunments:
   <icc_profile_path>  Path to the ICC color profile to be embedded in the output TIFFs, for example the supplied sRGB profile: data/sRGB_profile.icc
 ```
 
-Every RAW image in ```<input_dir_path>``` will be processed. The color card detection attempts to identify the square color patches on the card and then tries to fit a 4x6 grid and sample from the center of each cell. That means that even if not all patches are recognized, the color sampling can be successful if a grid can be fitted (see Fig. 1, where the bottom left grid was not detected but it is was still sampled). The images in ```<review_dir_path>``` will give an idea how reliable the color card detection works, adjusting the detection parameters in ```batch_correct.py``` (which will be passed on to PlantCV's ```transform.detect_color_card()``` function) can have a big impact:
+Every RAW image in ```<input_dir_path>``` will be processed. The color card detection attempts to identify the 24 square color patches on the card and then to fit a 4x6 grid and sample from the center of each grid cell. That means that even if not all patches are recognized, the color sampling can be successful if a grid can be fitted (see Fig. 1, where the bottom left grid was not detected but it is was still sampled). The images in ```<review_dir_path>``` will give an idea how reliable the color card detection works. If not satisfactory, adjusting the detection parameters in ```batch_correct.py``` (which will be passed on to PlantCV's ```transform.detect_color_card()``` function) can have a big impact:
 
 ```
 ## PLANTCV CONFIG
@@ -61,10 +63,10 @@ RADIUS = 50
 MIN_SIZE = 20000
 ```
 
-It is worth comparing the performance of the two ```ADAPTIVE_METHOD``` options (```0``` = mean, ```1``` = Gaussian) and to try out other values for ```BLOCK_SIZE```(must be uneven). ```RADIUS``` (in pixels) determines the size of the circular sampling area in each patch (see Fig. 1) and ```MIN_SIZE``` determines the minimum area of a single color patch (in pixels). This can be estimated by counting the width of a patch in pixels and multiplying it by 2, but make sure to set a threshold that is slightly below the observed patch size to account for variation between images. 
+It is worth comparing the performance of the two ```ADAPTIVE_METHOD``` options (```0``` = *mean*, ```1``` = *Gaussian*) and to try out other values for ```BLOCK_SIZE```(must be uneven). ```RADIUS``` (in pixels) determines the size of the circular sampling area in each patch (see Fig. 1) and the ```MIN_SIZE``` threshold determines the minimum area of a the individual color patch (in pixels) to be detectable. This can be estimated by counting the width of a patch in pixels and multiplying it by 2, but make sure to set a threshold that is slightly below the observed patch size to account for variation between images. 
 ```<ref_image_path>``` specifies a single RAW image (this can be one from ```<input_dir_path>```) that will serve as the reference for all other images ton inform color and exposure corrections. ```<icc_profile_path>``` specifies an [color profile](https://en.wikipedia.org/wiki/ICC_profile) to be embedded in the output TIFF files. Often, the supplied profile (```data/sRGB_profile.icc```) will suffice.
 
-If automated detection/correction fails for an image, check step 3.
+If automated detection/correction fails for some images, consider step 3.
 
 
 <br />
@@ -92,12 +94,12 @@ Usage of ```correct_from_proxy.py```:
 
 ###  Further processing: [optional] 
 
-The produced TIFF files are color and exposure corrected and normalized. Further corrections using standard image processing software may now be applied to all photos, e.g. using Lightroom presets. 
+The produced TIFF files are color and exposure corrected. Further adjustments may now be applied to all photos using standard image processing software, e.g. using Lightroom presets. 
 Please not that: 
 (1) metadata (EXIF, e.g. aperture, shutter speed, ISO) from the RAW files are not retained in the TIFFs
 (2) The output TIFF files are uncompressed.
 
-To convert TIFF files to lossless compressed PNG files and to add metadata, I recommend using [ImageMagick](https://imagemagick.org/index.php) and [exiftool](https://exiftool.org). Both can be installed with conda/mamba (```conda install -c conda-forge imagemagick exiftool```). The following loop may be used to convert TIFF files to compressed (lossless) PNGs and reannotate them with the metadata from the RAW files:
+To convert TIFF files to compressed (lossless!) PNG files and to reannotate them with the original metadata, I recommend using [ImageMagick](https://imagemagick.org/index.php) and [exiftool](https://exiftool.org). Both can be installed with conda/mamba (```conda install -c conda-forge imagemagick exiftool```). The following BASH loop may be used to convert TIFF files to compressed (lossless) PNGs and reannotate them with the metadata from the RAW files:
 
 ```
 mkdir -p png
@@ -109,7 +111,7 @@ RAW_SUFFIX=ARW # RAW file suffix, e.g. ARW, NEF, CR3
 
 for FILE_PATH in $(find $TIF_DIR -type f -name "*.tiff" | sort) ; do
   FILE_NAME=$(echo $FILE_PATH | rev | cut -d '/' -f-1 | cut -d '.' -f2- | rev)
-  magick ${TIF_DIR}/${FILE_NAME}.tif -define png:compression-level=6 ${PNG_DIR}/${FILE_NAME}.png
+  magick ${TIF_DIR}/${FILE_NAME}.tiff -define png:compression-level=6 ${PNG_DIR}/${FILE_NAME}.png
   exiftool -overwrite_original -tagsFromFile ${RAW_DIR}/${FILE_NAME}.${RAW_SUFFIX} ${PNG_DIR}/${FILE_NAME}.png
 done
 ```
