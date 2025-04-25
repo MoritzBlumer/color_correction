@@ -102,14 +102,15 @@ To convert TIFF files to lossless compressed PNG files and to add metadata, I re
 ```
 mkdir -p png
 
-RAW_DIR='raw'
-TIF_DIR='tiff'
-PNG_DIR='png'
+RAW_DIR=raw    # directory containing RAW files
+TIF_DIR=tiff   # directory containing corrected TIFF files
+PNG_DIR=png    # new directory for compressed PNG files
+RAW_SUFFIX=ARW # RAW file suffix, e.g. ARW, NEF, CR3
 
 for FILE_PATH in $(find $TIF_DIR -type f -name "*.tiff" | sort) ; do
   FILE_NAME=$(echo $FILE_PATH | rev | cut -d '/' -f-1 | cut -d '.' -f2- | rev)
   magick ${TIF_DIR}/${FILE_NAME}.tif -define png:compression-level=6 ${PNG_DIR}/${FILE_NAME}.png
-  exiftool -overwrite_original -tagsFromFile ${RAW_DIR}/${FILE_NAME}.ARW ${PNG_DIR}/${FILE_NAME}.png
+  exiftool -overwrite_original -tagsFromFile ${RAW_DIR}/${FILE_NAME}.${RAW_SUFFIX} ${PNG_DIR}/${FILE_NAME}.png
 done
 ```
 
