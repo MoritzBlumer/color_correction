@@ -59,7 +59,9 @@ BLOCK_SIZE = 101
 RADIUS = 50
 MIN_SIZE = 20000
 ```
-It is worth comparing the performance of the two ```ADAPTIVE_METHOD``` options (```0``` = mean, ```1``` = Gaussian) and to try out other values for ```BLOCK_SIZE```(must be uneven). ```RADIUS``` (in pixels) determines the size of the circular sampling area in each patch (see Fig. 1) and ```MIN_SIZE``` deteermines the minimum area of a single color patch (in pixels). This can be estimated by counting the width of a patch in pixels and multiplying it by 2, but make sure to set a threshold that is slightly below the observed patch size to account for variation between images. 
+
+It is worth comparing the performance of the two ```ADAPTIVE_METHOD``` options (```0``` = mean, ```1``` = Gaussian) and to try out other values for ```BLOCK_SIZE```(must be uneven). ```RADIUS``` (in pixels) determines the size of the circular sampling area in each patch (see Fig. 1) and ```MIN_SIZE``` determines the minimum area of a single color patch (in pixels). This can be estimated by counting the width of a patch in pixels and multiplying it by 2, but make sure to set a threshold that is slightly below the observed patch size to account for variation between images. 
+```<ref_image_path>``` specifies a single RAW image (this can be one from ```<input_dir_path>```) that will serve as the reference for all other images ton inform color and exposure corrections. ```<icc_profile_path>``` specifies an [color profile](https://en.wikipedia.org/wiki/ICC_profile) to be embedded in the output TIFF files. Often, the supplied profile (```data/sRGB_profile.icc```) will suffice.
 
 If automated detection/correction fails for an image, check step 3.
 
@@ -73,22 +75,41 @@ Sometimes a *target image* lacks a color card or the card might be partially cov
 Usage of ```correct_from_proxy.py```:
 
 ```
-    parser.add_argument('target_image_path', type=str, help='Path to the RAW \
-        image to apply corrections to')
-    parser.add_argument('proxy_image_path', type=str, help='Path to the (proxy) \
-        RAW image used to infer corrections from')
-    parser.add_argument('ref_image_path', type=str, help='Path to the RAW \
-        image serving as the reference for for color correction')
-    parser.add_argument('output_path', type=str, help='Path to the \
-        color-corrected output TIFF')
-    parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
-        debug directory which will contain PNGs with the masked color card for \
-        review')
-    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC color \
-        profile to be embedded in the output TIFFs, for example the supplied sRGB \
-        profile: data/sRGB_profile.icc')
+  <target_image_path>  Path to the RAW image to apply corrections to
+  <proxy_image_path>   Path to the (proxy) RAW image used to infer corrections from
+  <ref_image_path>     Path to the RAW image serving as the reference for for color correction
+  <output_path>        Path to the color-corrected output TIFF
+  <review_dir_path>    Path to the PlantCV debug directory which will contain PNGs with the masked color card for review
+  <icc_profile_path>   Path to the ICC color profile to be embedded in the output TIFFs, for example the supplied sRGB
+                       profile: data/sRGB_profile.icc
 ```
 
+```correct_from_proxy.py``` also contains a CONFIG block where the PlantCV detection parameters can be adjusted.
 
+
+<br />
+
+###  Further processing: [optional] 
+
+The produced TIFF files are color and exposure corrected and normalized. Further corrections using standard image processing software may now be applied to all photos, e.g. using Lightroom presets. 
+Please not that: 
+(1) metadata (EXIF, e.g. aperture, shutter speed, ISO) from the RAW files are not retained in the TIFFs
+(2) The output TIFF files are uncompressed.
+
+To convert TIFF files to lossless compressed PNG files and to add metadata, I recommend using [ImageMagick](https://imagemagick.org/index.php) and [exiftool](https://exiftool.org). Both can be installed with conda/mamba (```conda install -c conda-forge imagemagick exiftool```). The following loop may be used to convert TIFF files to compressed (lossless) PNGs and reannotate them with the metadata from the RAW files:
+
+```
+mkdir -p png
+
+RAW_DIR='raw'
+TIF_DIR='tiff'
+PNG_DIR='png'
+
+for FILE_PATH in $(find $TIF_DIR -type f -name "*.tiff" | sort) ; do
+  FILE_NAME=$(echo $FILE_PATH | rev | cut -d '/' -f-1 | cut -d '.' -f2- | rev)
+  magick ${TIF_DIR}/${FILE_NAME}.tif -define png:compression-level=6 ${PNG_DIR}/${FILE_NAME}.png
+  exiftool -overwrite_original -tagsFromFile ${RAW_DIR}/${FILE_NAME}.ARW ${PNG_DIR}/${FILE_NAME}.png
+done
+```
 
 
