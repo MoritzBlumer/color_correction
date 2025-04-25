@@ -1,9 +1,10 @@
 # _Automated color and exposure correction based on color card_
 
-Batch-correct color and exposure among a set of RAW (e.g. .ARW, .NEF, .CR3) images that all contain the same color card. One image is set as the reference and used to extract a reference color matrix, then all images are read in one by one and corrections are applied to match the reference image color matrix. **All images must contain a 24 patch color card like the Calibrite ColorChecker Classic Mini, but cheaper models work as well as long as the same card is consistently used**.
+Batch-correct color and exposure among a set of RAW (e.g. .ARW, .NEF, .CR3) images that all contain the same color card. One image is used to extract a reference color matrix,  all images are then read one by one and corrections are applied to match the reference color matrix. **All images must contain a 24 patch color card like the Calibrite ColorChecker Classic Mini, but cheaper models work as well as long as the same card is consistently used**.
 
 ![example_image](assets/example_image.png)
 **Fig. 1**: Example image with a color card (auto-detected with PlantCV). 
+
 <br />
 <br />
 
@@ -20,7 +21,7 @@ mamba install -c conda-forge plantcv opencv rawpy pillow
 
 ## Workflow example
 
-###  Step 1:  Set up working directories for ```batch_correct.py```
+###  Step 1:  Set up working directories for batch correction
 
 Setup three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved (e.g. "review"). Images in review are not color-corrected and should be manually checked to make sure the color card was detected correctly. Below is an exemplary directory structure.
 ```
@@ -35,7 +36,7 @@ Setup three directories: one containing the RAW images to be corrected (e.g. "ra
 ```
 <br />
 
-###  Step 2:  Run ```batch_correct.py```
+###  Step 2:  Batch correct color and exposure
 
 Execute ```batch_correct.py```, which expects 6 positional argunments:
 
@@ -68,7 +69,7 @@ If automated detection/correction fails for an image, check step 3.
 
 <br />
 
-###  Step 3: [optional] Use ```correct_from_proxy.py``` to fix individual images where automated color correction failed
+###  Step 3:  Fix individual images if automated color correction failed [optional]
 
 Sometimes a *target image* lacks a color card or the card might be partially covered and autodetection fails. If that is the case, one can use another image from the same series as a *proxy* to infer color corrections. ```correct_from_proxy.py``` does exactly that, it takes a ```target image``` but uses a ```proxy image``` (e.g. the next image in the series with successfull card detection) to infer the corrections required relative to the same ```reference image``` used in ```batch_correct.py```. The corrections are then applied to the ```target image```. This allows to fix individual images where the batch correction workflow was not successful.
 
@@ -111,5 +112,9 @@ for FILE_PATH in $(find $TIF_DIR -type f -name "*.tiff" | sort) ; do
   exiftool -overwrite_original -tagsFromFile ${RAW_DIR}/${FILE_NAME}.ARW ${PNG_DIR}/${FILE_NAME}.png
 done
 ```
+
+## Contact
+
+Moritz Blumer: lmb215@cam.ac.uk
 
 
