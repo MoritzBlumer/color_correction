@@ -2,6 +2,8 @@
 
 Batch-correct color and exposure among a set of RAW (e.g. .ARW, .NEF, .CR3) images that all contain the same color card. One image is set as the reference and used to extract a reference color matrix, then all images are read in one by one and corrections are applied to match the reference image color matrix. **All images must contain a 24 patch color card like the Calibrite ColorChecker Classic Mini, but cheaper models work as well as long as the same card is consistently used**.
 
+![example_image](assets/example_image.png)
+**Fig. 1**: Example image with a color card (auto-detected with PlantCV). 
 <br />
 <br />
 
@@ -13,3 +15,80 @@ All dependencies can be installed with conda/mamba
 ```
 mamba install -c conda-forge plantcv opencv rawpy pillow 
 ```
+<br />
+<br />
+
+## Workflow example
+
+###  Step 1:  Set up working directories for ```batch_correct.py```
+
+Setup three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved (e.g. "review"). Images in review are not color-corrected and should be manually checked to make sure the color card was detected correctly. Below is an exemplary directory structure.
+```
+├── raw
+│   ├── image_01.ARW
+│   ├── image_02.ARW
+│   ├── image_03.ARW
+│   ├── image_04.ARW
+│   └── image_05.ARW
+├── tiff
+└── review
+```
+<br />
+
+###  Step 2:  Run ```batch_correct.py```
+
+Execute ```batch_correct.py```, which expects 6 positional argunments:
+
+```
+  <input_dir_path>    Path to the input directory containing RAW files
+  <output_dir_path>   Path to the output directory which to which color-corrected TIFF files will be saved
+  <review_dir_path>   Path to the PlantCV debug directory which will contain PNGs with the masked color card for review
+  <ref_image_path>    Path to the a single RAW image that will serve as the reference for all input RAW files
+  <raw_suffix>        RAW suffix used, this could be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others (check rawpy)
+  <icc_profile_path>  Path to the ICC color profile to be embedded in the output TIFFs, for example the supplied sRGB profile: data/sRGB_profile.icc
+```
+
+Every RAW image in ```<input_dir_path>``` will be processed. The color card detection attempts to identify the square color patches on the card and then tries to fit a 4x6 grid and sample from the center of each cell. That means that even if not all patches are recognized, the color sampling can be successful if a grid can be fitted (see Fig. 1, where the bottom left grid was not detected but it is was still sampled). The images in ```<review_dir_path>``` will give an idea how reliable the color card detection works, adjusting the detection parameters in ```batch_correct.py``` (which will be passed on to PlantCV's ```transform.detect_color_card()``` function) can have a big impact:
+
+```
+## PLANTCV CONFIG
+
+# adjust variable for card detection
+ADAPTIVE_METHOD = 0
+BLOCK_SIZE = 101
+RADIUS = 50
+MIN_SIZE = 20000
+```
+It is worth comparing the performance of the two ```ADAPTIVE_METHOD``` options (```0``` = mean, ```1``` = Gaussian) and to try out other values for ```BLOCK_SIZE```(must be uneven). ```RADIUS``` (in pixels) determines the size of the circular sampling area in each patch (see Fig. 1) and ```MIN_SIZE``` deteermines the minimum area of a single color patch (in pixels). This can be estimated by counting the width of a patch in pixels and multiplying it by 2, but make sure to set a threshold that is slightly below the observed patch size to account for variation between images. 
+
+If automated detection/correction fails for an image, check step 3.
+
+
+<br />
+
+###  Step 3: [optional] Use ```correct_from_proxy.py``` to fix individual images where automated color correction failed
+
+Sometimes a *target image* lacks a color card or the card might be partially covered and autodetection fails. If that is the case, one can use another image from the same series as a *proxy* to infer color corrections. ```correct_from_proxy.py``` does exactly that, it takes a ```target image``` but uses a ```proxy image``` (e.g. the next image in the series with successfull card detection) to infer the corrections required relative to the same ```reference image``` used in ```batch_correct.py```. The corrections are then applied to the ```target image```. This allows to fix individual images where the batch correction workflow was not successful.
+
+Usage of ```correct_from_proxy.py```:
+
+```
+    parser.add_argument('target_image_path', type=str, help='Path to the RAW \
+        image to apply corrections to')
+    parser.add_argument('proxy_image_path', type=str, help='Path to the (proxy) \
+        RAW image used to infer corrections from')
+    parser.add_argument('ref_image_path', type=str, help='Path to the RAW \
+        image serving as the reference for for color correction')
+    parser.add_argument('output_path', type=str, help='Path to the \
+        color-corrected output TIFF')
+    parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
+        debug directory which will contain PNGs with the masked color card for \
+        review')
+    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC color \
+        profile to be embedded in the output TIFFs, for example the supplied sRGB \
+        profile: data/sRGB_profile.icc')
+```
+
+
+
+
