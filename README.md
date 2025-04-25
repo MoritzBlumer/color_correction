@@ -113,7 +113,8 @@ for FILE_PATH in $(find $TIF_DIR -type f -name "*.tiff" | sort) ; do
   exiftool -overwrite_original -tagsFromFile ${RAW_DIR}/${FILE_NAME}.${RAW_SUFFIX} ${PNG_DIR}/${FILE_NAME}.png
 done
 ```
-
+<br />
+<br />
 ## Contact
 
 Moritz Blumer: lmb215@cam.ac.uk
