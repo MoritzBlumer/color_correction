@@ -23,7 +23,7 @@ mamba install -c conda-forge plantcv opencv rawpy pillow
 
 ###  Step 1:  Set up working directories for batch correction
 
-Setup three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved per input file (e.g. "review"). The purpose of the PNG images written to the review directory is to manually check that the color card was detected correctly in each image. 
+Set up three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved per input file (e.g. "review"). The purpose of the PNG images written to the review directory is to manually check that the color card was detected correctly in each image. 
 
 Below is an exemplary directory structure:
 ```
