@@ -1,6 +1,6 @@
 # _Automated color and exposure correction based on color card_
 
-Batch-correct color and exposure among a set of RAW (e.g. .ARW, .NEF, .CR3), TIFF or PNG images that all contain the same color card. One image is used to extract a reference color matrix,  all images are then read one by one and corrections are applied to match the reference color matrix. **All images must contain a 24 patch color card like the Calibrite ColorChecker Classic Mini, but cheaper models work as well as long as the same card is consistently used**.
+Batch-correct color and exposure among a set of RAW (e.g. .ARW, .NEF, .CR3), TIFF or PNG images that all contain the same color card. It is highly recommended to use RAW files as input. One image is used to extract a reference color matrix,  all images are then read one by one and corrections are applied to match the reference color matrix. **All images must contain a 24 patch color card like the Calibrite ColorChecker Classic Mini, but cheaper models work as well as long as the same card is consistently used**.
 
 ![example_image](assets/example_image.png)
 **Fig. 1**: Example image with a color card (auto-detected with PlantCV). 
@@ -23,7 +23,7 @@ mamba install -c conda-forge plantcv opencv rawpy pillow numpy
 
 ###  Step 1:  Set up working directories for batch correction
 
-Set up three directories: one containing the RAW images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved per input file (e.g. "review"). The purpose of the PNG images written to the review directory is to manually check that the color card was detected correctly in each image. 
+Set up three directories: one containing the RAW (or PNG/TIFF) images to be corrected (e.g. "raw"), one where ```batch_correct.py``` will save the color and exposure-corrected output TIFF files (e.g. "tiff") and one where a PNG image with a visualization of the color card detection (see Fig. 1) will be saved per input file (e.g. "review"). The purpose of the PNG images written to the review directory is to manually check that the color card was detected correctly in each image. 
 
 Below is an exemplary directory structure:
 ```
