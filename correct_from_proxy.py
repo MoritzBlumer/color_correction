@@ -55,8 +55,8 @@ def cli():
     # add arguments
     parser.add_argument('target_image_path', type=str, help='Path to the RAW \
         (or PNG/TIFF) image to apply corrections to')
-    parser.add_argument('proxy_image_path', type=str, help='Path to the \
-        (proxy) RAW (or PNG/TIFF) image used to infer corrections from')
+    parser.add_argument('proxy_image_path', type=str, help='Path to a \
+        "proxy" RAW (or PNG/TIFF) image used to infer corrections from')
     parser.add_argument('ref_path', type=str, help='Path to the RAW \
         (or PNG/TIFF) image serving as the reference for for color correction \
         (or previously extracted reference color matrix in TSV format)')
@@ -65,7 +65,7 @@ def cli():
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
         debug directory which will contain PNGs with the masked color card for \
         review')
-    parser.add_argument('img_format', type=str, help='RAW suffix used, this \
+    parser.add_argument('img_format', type=str, help='Image format, this \
         could be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others \
         (check rawpy) – PNG and TIFF formats are also supported')
     parser.add_argument('icc_profile_path', type=str, help='Path to the ICC \
