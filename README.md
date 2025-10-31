@@ -68,7 +68,6 @@ It is worth comparing the performance of the two ```ADAPTIVE_METHOD``` options (
 
 If automated detection/correction fails for some images, consider step 3.
 
-
 <br />
 
 ###  Step 3:  Fix individual images if automated color correction failed [optional]
@@ -90,33 +89,22 @@ Usage of ```correct_from_proxy.py```:
 
 ```correct_from_proxy.py``` also contains a CONFIG block where the PlantCV detection parameters can be adjusted.
 
-
 <br />
 
 ###  Extract color correction-matrix from reference image [optional]
 
-Instead of repeatedly extracting the color correction matrix from 
+Instead of (repeatedly) extracting the color matrix from the same reference image in ```batch_correct.py``` or ```correct_from_proxy.py```, get_ref_color_matrix.py extracts the color correction matrix from an image and saves it as a TSV file which can then be specified as ```ref_path``` in ```batch_correct.py``` or ```correct_from_proxy.py``` (instead of the actual image).
 
-Sometimes a *target image* lacks a color card or the card might be partially covered and autodetection fails. If that is the case, one can use another image from the same series as a *proxy* to infer color corrections. ```correct_from_proxy.py``` does exactly that, it takes a ```target image``` but uses a ```proxy image``` (e.g. the next image in the series with successful card detection) to infer the corrections required relative to the same ```reference image``` used in ```batch_correct.py```. The corrections are then applied to the ```target image```. This allows to fix individual images where the batch correction workflow was not successful.
-
-Usage of ```correct_from_proxy.py```:
+Usage of ```get_ref_color_matrix.py```:
 
 ```
-  <target_image_path>  Path to the RAW (or PNG/TIFF) image to apply corrections to
-  <proxy_image_path>   Path to a "proxy" RAW (or PNG/TIFF) image used to infer corrections from
-  <ref_image_path>     Path to the RAW (or PNG/TIFF) image serving as the reference for for color correction (or previously extracted reference color matrix in TSV format)
-  <output_path>        Path to the color-corrected output TIFF
+  <ref_img_path>       Path to the RAW (or PNG/TIFF) image to extract reference color matrix from
+  <output_path>        Path to the output TSV
   <review_dir_path>    Path to the PlantCV debug directory which will contain PNGs with the masked color card for review
   <img_format>         Image format, this could be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others (check rawpy) – PNG and TIFF formats are also supported
-  <icc_profile_path>   Path to the ICC color profile to be embedded in the output TIFFs, for example the supplied sRGB
-                       profile: data/sRGB_profile.icc
 ```
 
-```correct_from_proxy.py``` also contains a CONFIG block where the PlantCV detection parameters can be adjusted.
-
-
 <br />
-
 
 ###  Further processing: [optional] 
 
