@@ -51,13 +51,13 @@ def cli():
 
     # add arguments
     parser.add_argument('ref_img_path', type=str, help='Path to the RAW \
-        (or PNG/TIFF) image serving as the reference for for color correction')
+        (or PNG/TIFF) image to extract reference color matrix from')
     parser.add_argument('output_path', type=str, help='Path to the \
-        color-corrected output TIFF')
+        output TSV')
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
         debug directory which will contain PNGs with the masked color card for \
         review')
-    parser.add_argument('img_format', type=str, help='RAW suffix used, this \
+    parser.add_argument('img_format', type=str, help='Image format, this \
         could be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others \
         (check rawpy) – PNG and TIFF formats are also supported')
 
