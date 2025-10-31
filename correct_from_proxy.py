@@ -28,10 +28,12 @@ MIN_SIZE = 20000
 #  import packages
 import argparse
 import os
+import sys
 import rawpy
 import cv2
 from plantcv import plantcv as pcv
 from PIL import Image
+import numpy as np
 
 
 
@@ -43,8 +45,8 @@ def cli():
     Parse command line arguments.
     '''
 
-    global target_image_path, proxy_image_path, ref_image_path, \
-        ref_image_path, output_path, review_dir_path, icc_profile_path
+    global target_image_path, proxy_image_path, ref_path, \
+        ref_path, output_path, review_dir_path, icc_profile_path
 
     parser = argparse.ArgumentParser(description="Infer color corrections from \
         proxy image,  apply them to target image.")
@@ -54,8 +56,9 @@ def cli():
         image to apply corrections to')
     parser.add_argument('proxy_image_path', type=str, help='Path to the (proxy) \
         RAW image used to infer corrections from')
-    parser.add_argument('ref_image_path', type=str, help='Path to the RAW \
-        image serving as the reference for for color correction')
+    parser.add_argument('ref_path', type=str, help='Path to the RAW \
+        image serving as the reference for for color correction (or \
+        previously extracted reference color matrix in TSV format)')
     parser.add_argument('output_path', type=str, help='Path to the \
         color-corrected output TIFF')
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
@@ -69,9 +72,9 @@ def cli():
     args = parser.parse_args()
 
     # reassign variable names
-    target_image_path, proxy_image_path, ref_image_path, output_path, \
+    target_image_path, proxy_image_path, ref_path, output_path, \
         review_dir_path, icc_profile_path = \
-        args.target_image_path, args.proxy_image_path, args.ref_image_path, \
+        args.target_image_path, args.proxy_image_path, args.ref_path, \
         args.output_path, args.review_dir_path, args.icc_profile_path
 
 
@@ -129,7 +132,7 @@ def detect_color_card(image_path, ADAPTIVE_METHOD, BLOCK_SIZE, RADIUS, \
     return card_mask
 
 
-def get_ref_color_matrix(ref_image_path):
+def get_ref_color_matrix(ref_path):
 
     '''
     Extract reference color matrix from a RAW image: First detect color card 
@@ -142,7 +145,7 @@ def get_ref_color_matrix(ref_image_path):
 
     # get color profile from reference image 
     ref_card_mask = detect_color_card(
-        ref_image_path,
+        ref_path,
         ADAPTIVE_METHOD, 
         BLOCK_SIZE, 
         RADIUS,
@@ -154,7 +157,7 @@ def get_ref_color_matrix(ref_image_path):
     pcv.params.debug = None
 
     # read RAW
-    raw = rawpy.imread(ref_image_path)
+    raw = rawpy.imread(ref_path)
 
     # convert to RGB
     rgb = raw.postprocess(
@@ -163,7 +166,7 @@ def get_ref_color_matrix(ref_image_path):
         use_camera_wb=False,
         use_auto_wb=False,
         no_auto_scale=False,
-        four_color_rgb=True,
+        four_color_rgb=False,
         output_color=rawpy.ColorSpace.sRGB,
     )
 
@@ -174,6 +177,20 @@ def get_ref_color_matrix(ref_image_path):
     _, ref_color_matrix = pcv.transform.get_color_matrix(
         rgb_img=bgr,
         mask=ref_card_mask
+    )
+
+    return ref_color_matrix
+
+
+def read_ref_color_matrix(ref_path):
+
+    '''
+    Read in previously extracted reference color matrix
+    '''
+
+    ref_color_matrix = np.loadtxt(
+        ref_path,
+        delimiter='\t'
     )
 
     return ref_color_matrix
@@ -269,7 +286,19 @@ def main():
         icc_profile = f.read()
 
     # extract reference/target color mask
-    ref_color_matrix = get_ref_color_matrix(ref_image_path)
+    if ref_path.endswith('.tsv'):
+        ref_color_matrix = read_ref_color_matrix(ref_path)
+    else:
+        try:
+            ref_color_matrix = get_ref_color_matrix(ref_path)
+
+        except:
+            print(
+                f'[ERROR] <ref_path> must be either in a RAW format or in .tsv'
+                ' format',
+                file=sys.stderr,
+            )
+            sys.exit()
 
     # apply proxy corrections
     rgb_corr = proxy_correct(

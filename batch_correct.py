@@ -26,11 +26,13 @@ MIN_SIZE = 20000
 
 #  import packages
 import argparse
+import sys
 import os
 import rawpy
 import cv2
 from plantcv import plantcv as pcv
 from PIL import Image
+import numpy as np
 
 
 
@@ -42,7 +44,7 @@ def cli():
     Parse command line arguments.
     '''
 
-    global input_dir_path, output_dir_path, review_dir_path, ref_image_path, \
+    global input_dir_path, output_dir_path, review_dir_path, ref_path, \
         raw_suffix, icc_profile_path
 
     parser = argparse.ArgumentParser(description="Batch-color correct RAW \
@@ -56,8 +58,9 @@ def cli():
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
         debug directory which will contain PNGs with the masked color card for \
         review')
-    parser.add_argument('ref_image_path', type=str, help='Path to the a single \
-        RAW image that will serve as the reference for all input RAW files')
+    parser.add_argument('ref_path', type=str, help='Path to the RAW \
+        image serving as the reference for for color correction (or \
+        previously extracted reference color matrix in TSV format)')
     parser.add_argument('raw_suffix', type=str, help='RAW suffix used, this could \
         be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others (check rawpy)')
     parser.add_argument('icc_profile_path', type=str, help='Path to the ICC color \
@@ -68,9 +71,9 @@ def cli():
     args = parser.parse_args()
 
     # reassign variable names
-    input_dir_path, output_dir_path, review_dir_path, ref_image_path, \
+    input_dir_path, output_dir_path, review_dir_path, ref_path, \
         raw_suffix, icc_profile_path = args.input_dir_path, \
-        args.output_dir_path, args.review_dir_path, args.ref_image_path, \
+        args.output_dir_path, args.review_dir_path, args.ref_path, \
         args.raw_suffix, args.icc_profile_path
 
 
@@ -128,7 +131,7 @@ def detect_color_card(image_path, ADAPTIVE_METHOD, BLOCK_SIZE, RADIUS, \
     return card_mask
 
 
-def get_ref_color_matrix(ref_image_path):
+def get_ref_color_matrix(ref_path):
 
     '''
     Extract reference color matrix from a RAW image: First detect color card 
@@ -141,7 +144,7 @@ def get_ref_color_matrix(ref_image_path):
 
     # get color profile from reference image 
     ref_card_mask = detect_color_card(
-        ref_image_path,
+        ref_path,
         ADAPTIVE_METHOD, 
         BLOCK_SIZE, 
         RADIUS,
@@ -152,7 +155,7 @@ def get_ref_color_matrix(ref_image_path):
     pcv.params.debug = None
 
     # read RAW
-    raw = rawpy.imread(ref_image_path)
+    raw = rawpy.imread(ref_path)
 
     # convert to RGB
     rgb = raw.postprocess(
@@ -161,7 +164,7 @@ def get_ref_color_matrix(ref_image_path):
         use_camera_wb=False,
         use_auto_wb=False,
         no_auto_scale=False,
-        four_color_rgb=True,
+        four_color_rgb=False,
         output_color=rawpy.ColorSpace.sRGB,
     )
 
@@ -172,6 +175,20 @@ def get_ref_color_matrix(ref_image_path):
     _, ref_color_matrix = pcv.transform.get_color_matrix(
         rgb_img=bgr,
         mask=ref_card_mask
+    )
+
+    return ref_color_matrix
+
+
+def read_ref_color_matrix(ref_path):
+
+    '''
+    Read in previously extracted reference color matrix
+    '''
+
+    ref_color_matrix = np.loadtxt(
+        ref_path,
+        delimiter='\t'
     )
 
     return ref_color_matrix
@@ -198,7 +215,7 @@ def apply_color_correction(image_path, card_mask, ref_color_matrix):
         use_camera_wb=False,
         use_auto_wb=False,
         no_auto_scale=False,
-        four_color_rgb=True,
+        four_color_rgb=False,
         output_color=rawpy.ColorSpace.sRGB,
     )
 
@@ -250,7 +267,17 @@ def main():
         icc_profile = f.read()
 
     # extract reference/target color mask
-    ref_color_matrix = get_ref_color_matrix(ref_image_path)
+    if ref_path.endswith(raw_suffix):
+        ref_color_matrix = get_ref_color_matrix(ref_path)
+    elif ref_path.endswith('.tsv'):
+        ref_color_matrix = read_ref_color_matrix(ref_path)
+    else:
+        print(
+            f'[ERROR] <ref_path> must be either in {raw_suffix} or .tsv'
+             ' format',
+             file=sys.stderr,
+        )
+        sys.exit()
 
     # process images
     for image in target_image_lst:
