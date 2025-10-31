@@ -2,8 +2,8 @@
 #
 # Moritz Blumer | 2025-04-24
 #
-# Correct a single image but infer corrections from another (proxy) image from 
-# the same series (this is useful if the color card in the target image is 
+# Correct a single image but infer corrections from another (proxy) image from
+# the same series (this is useful if the color card in the target image is
 # covered and can't be used for auto-correction)
 
 
@@ -13,14 +13,15 @@ __email__ = 'lmb215@cam.ac.uk'
 
 
 
-## PLANTCV CONFIG
+## CONFIG
 
 # adjust variable for card detection (see README)
 ADAPTIVE_METHOD = 0
 BLOCK_SIZE = 101
 RADIUS = 50
 MIN_SIZE = 20000
-
+RAW_SUFFIX_LST = ['RAW', 'raw', 'ARW', 'arw', 'NEF', 'nef']
+TIF_PNG_SUFFIX_LST = ['TIFF', 'tiff', 'TIF', 'tif', 'PNG', 'png']
 
 
 ## SETUP
@@ -45,37 +46,41 @@ def cli():
     Parse command line arguments.
     '''
 
-    global target_image_path, proxy_image_path, ref_path, \
-        ref_path, output_path, review_dir_path, icc_profile_path
+    global target_image_path, proxy_image_path, ref_path, ref_path, \
+        output_path, review_dir_path, img_format, icc_profile_path
 
-    parser = argparse.ArgumentParser(description="Infer color corrections from \
-        proxy image,  apply them to target image.")
+    parser = argparse.ArgumentParser(description="Infer color corrections \
+        from proxy image, apply them to target image.")
 
     # add arguments
     parser.add_argument('target_image_path', type=str, help='Path to the RAW \
-        image to apply corrections to')
-    parser.add_argument('proxy_image_path', type=str, help='Path to the (proxy) \
-        RAW image used to infer corrections from')
+        (or PNG/TIFF) image to apply corrections to')
+    parser.add_argument('proxy_image_path', type=str, help='Path to the \
+        (proxy) RAW (or PNG/TIFF) image used to infer corrections from')
     parser.add_argument('ref_path', type=str, help='Path to the RAW \
-        image serving as the reference for for color correction (or \
-        previously extracted reference color matrix in TSV format)')
+        (or PNG/TIFF) image serving as the reference for for color correction \
+        (or previously extracted reference color matrix in TSV format)')
     parser.add_argument('output_path', type=str, help='Path to the \
         color-corrected output TIFF')
     parser.add_argument('review_dir_path', type=str, help='Path to the PlantCV \
         debug directory which will contain PNGs with the masked color card for \
         review')
-    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC color \
-        profile to be embedded in the output TIFFs, for example the supplied sRGB \
-        profile: data/sRGB_profile.icc')
-    
+    parser.add_argument('img_format', type=str, help='RAW suffix used, this \
+        could be "ARW" (Sony), "NEF" (Nikon), "CR3" (Canon) or others \
+        (check rawpy) – PNG and TIFF formats are also supported')
+    parser.add_argument('icc_profile_path', type=str, help='Path to the ICC \
+        color profile to be embedded in the output TIFFs, for example the \
+        supplied sRGB profile: data/sRGB_profile.icc')
+
     # parse
     args = parser.parse_args()
 
     # reassign variable names
     target_image_path, proxy_image_path, ref_path, output_path, \
-        review_dir_path, icc_profile_path = \
+        review_dir_path, img_format, icc_profile_path = \
         args.target_image_path, args.proxy_image_path, args.ref_path, \
-        args.output_path, args.review_dir_path, args.icc_profile_path
+        args.output_path, args.review_dir_path, args.img_format, \
+        args.icc_profile_path
 
 
 
@@ -91,8 +96,8 @@ def check_make_dir(dir_path):
         os.mkdir(dir_path)
 
 
-def detect_color_card(image_path, ADAPTIVE_METHOD, BLOCK_SIZE, RADIUS, \
-                      MIN_SIZE):
+def detect_color_card(image_path, img_format, ADAPTIVE_METHOD, BLOCK_SIZE, \
+        RADIUS, MIN_SIZE, RAW_SUFFIX_LST, TIF_PNG_SUFFIX_LST):
 
     '''
     Read in 8 bit image using auto brightness, autoscaling, no 4-channel-RGB,
@@ -101,23 +106,39 @@ def detect_color_card(image_path, ADAPTIVE_METHOD, BLOCK_SIZE, RADIUS, \
 
     # enable debug/print
     pcv.params.debug = 'print'
-    
+
     # read RAW
-    raw = rawpy.imread(image_path)
+    if img_format in RAW_SUFFIX_LST:
 
-    # convert to RGB
-    rgb = raw.postprocess(
-        output_bps=8,
-        no_auto_bright=False,
-        use_camera_wb=False,
-        use_auto_wb=True,
-        no_auto_scale=False,
-        four_color_rgb=False,
-        output_color=rawpy.ColorSpace.sRGB,
-    )
+        # read RAW
+        raw = rawpy.imread(image_path)
 
-    # rearrange channels because plantcv expects BGR
-    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        # convert to RGB
+        rgb = raw.postprocess(
+            output_bps=8,
+            no_auto_bright=False,
+            use_camera_wb=False,
+            use_auto_wb=True,
+            no_auto_scale=False,
+            four_color_rgb=False,
+            output_color=rawpy.ColorSpace.sRGB,
+        )
+
+        # rearrange channels because plantcv expects BGR
+        bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+    # read TIFF/PNG
+    elif img_format in TIF_PNG_SUFFIX_LST:
+
+        bgr = cv2.imread(image_path, cv2.IMREAD_COLOR)
+
+    # else print error message and exit
+    else:
+        print(
+            '[ERROR] images must be either in a RAW, TIFF or PNG format',
+             file=sys.stderr,
+        )
+        sys.exit()
 
     # detect color card
     card_mask = pcv.transform.detect_color_card(
@@ -132,46 +153,58 @@ def detect_color_card(image_path, ADAPTIVE_METHOD, BLOCK_SIZE, RADIUS, \
     return card_mask
 
 
-def get_ref_color_matrix(ref_path):
+def get_ref_color_matrix(ref_path, img_format, ADAPTIVE_METHOD, BLOCK_SIZE, \
+        RADIUS, MIN_SIZE, RAW_SUFFIX_LST, TIF_PNG_SUFFIX_LST):
 
     '''
-    Extract reference color matrix from a RAW image: First detect color card 
-    with detect_color_card(), then read it in again as in
+    Extract reference color matrix from a RAW/PNG/TIFF image: First detect
+    color card with detect_color_card(), then read it in again as in
     apply_color_correction() and extract color mask.
     '''
 
     # enable debug/print
     pcv.params.debug = 'print'
 
-    # get color profile from reference image 
+    # get color profile from reference image
     ref_card_mask = detect_color_card(
         ref_path,
-        ADAPTIVE_METHOD, 
-        BLOCK_SIZE, 
+        img_format,
+        ADAPTIVE_METHOD,
+        BLOCK_SIZE,
         RADIUS,
-        MIN_SIZE
+        MIN_SIZE,
+        RAW_SUFFIX_LST,
+        TIF_PNG_SUFFIX_LST,
     )
-
 
     # disable debug/print
     pcv.params.debug = None
 
+
     # read RAW
-    raw = rawpy.imread(ref_path)
+    if img_format in RAW_SUFFIX_LST:
 
-    # convert to RGB
-    rgb = raw.postprocess(
-        output_bps=8,
-        no_auto_bright=True,
-        use_camera_wb=False,
-        use_auto_wb=False,
-        no_auto_scale=False,
-        four_color_rgb=False,
-        output_color=rawpy.ColorSpace.sRGB,
-    )
+        # read RAW
+        raw = rawpy.imread(ref_path)
 
-    # rearrange channels because plantcv expects BGR
-    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        # convert to RGB
+        rgb = raw.postprocess(
+            output_bps=8,
+            no_auto_bright=True,
+            use_camera_wb=False,
+            use_auto_wb=False,
+            no_auto_scale=False,
+            four_color_rgb=False,
+            output_color=rawpy.ColorSpace.sRGB,
+        )
+
+        # rearrange channels because plantcv expects BGR
+        bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+    # read TIFF/PNG
+    else:
+
+        bgr = cv2.imread(ref_path, cv2.IMREAD_COLOR)
 
     # derive color card matrix
     _, ref_color_matrix = pcv.transform.get_color_matrix(
@@ -205,31 +238,42 @@ def proxy_correct(proxy_image_path, target_image_path, ref_color_matrix):
     # detect color card
     card_mask = detect_color_card(
         proxy_image_path,
-            ADAPTIVE_METHOD, 
-            BLOCK_SIZE, 
-            RADIUS,
-            MIN_SIZE,
+        img_format,
+        ADAPTIVE_METHOD,
+        BLOCK_SIZE,
+        RADIUS,
+        MIN_SIZE,
+        RAW_SUFFIX_LST,
+        TIF_PNG_SUFFIX_LST,
     )
 
     # disable debug/print
     pcv.params.debug = None
 
-    # read RAW (good image)
-    raw = rawpy.imread(proxy_image_path)
+    # read RAW
+    if img_format in RAW_SUFFIX_LST:
 
-    # convert to RGB
-    rgb = raw.postprocess(
-        output_bps=8,
-        no_auto_bright=True,
-        use_camera_wb=False,
-        use_auto_wb=False,
-        no_auto_scale=False,
-        four_color_rgb=True,
-        output_color=rawpy.ColorSpace.sRGB,
-    )
+        # read RAW (good image)
+        raw = rawpy.imread(proxy_image_path)
 
-    # rearrange channels because plantcv expects BGR
-    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        # convert to RGB
+        rgb = raw.postprocess(
+            output_bps=8,
+            no_auto_bright=True,
+            use_camera_wb=False,
+            use_auto_wb=False,
+            no_auto_scale=False,
+            four_color_rgb=True,
+            output_color=rawpy.ColorSpace.sRGB,
+        )
+
+        # rearrange channels because plantcv expects BGR
+        bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+    # read TIFF/PNG
+    else:
+
+        bgr = cv2.imread(proxy_image_path, cv2.IMREAD_COLOR)
 
     # derive color card matrix
     _, color_matrix = pcv.transform.get_color_matrix(
@@ -237,24 +281,48 @@ def proxy_correct(proxy_image_path, target_image_path, ref_color_matrix):
         mask=card_mask
     )
 
-    # read RAW (bad image)
-    raw = rawpy.imread(target_image_path)
-
-    # convert to RGB
-    rgb = raw.postprocess(
-        output_bps=8,
-        no_auto_bright=True,
-        use_camera_wb=False,
-        use_auto_wb=False,
-        no_auto_scale=False,
-        four_color_rgb=True,
-        output_color=rawpy.ColorSpace.sRGB,
+    # derive upside-down color card matrix
+    card_mask_ud = np.flipud(card_mask)
+    _, color_matrix_ud = pcv.transform.get_color_matrix(
+        rgb_img=bgr,
+        mask=card_mask_ud
     )
 
-    # rearrange channels because plantcv expects BGR
-    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    # compute “distance” to reference matrix (sum of squared differences)
+    diff_normal = np.linalg.norm(color_matrix - ref_color_matrix)
+    diff_flipped = np.linalg.norm(color_matrix_ud - ref_color_matrix)
 
-    # Color correct your image to the standard values
+    # select correct orientation
+    if diff_normal >= diff_flipped:
+        print('[INFO] Color card upside down', file=sys.stderr)
+        color_matrix = color_matrix_ud
+
+    # read RAW
+    if img_format in RAW_SUFFIX_LST:
+
+        # read RAW (bad image)
+        raw = rawpy.imread(target_image_path)
+
+        # convert to RGB
+        rgb = raw.postprocess(
+            output_bps=8,
+            no_auto_bright=True,
+            use_camera_wb=False,
+            use_auto_wb=False,
+            no_auto_scale=False,
+            four_color_rgb=True,
+            output_color=rawpy.ColorSpace.sRGB,
+        )
+
+        # rearrange channels because plantcv expects BGR
+        bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+    # read TIFF/PNG
+    else:
+
+        bgr = cv2.imread(target_image_path, cv2.IMREAD_COLOR)
+
+    # correct colors
     bgr_corr = pcv.transform.affine_color_correction(
         rgb_img=bgr,
         source_matrix=color_matrix,
@@ -274,7 +342,7 @@ def main():
 
     # parse arguments
     cli()
-    
+
     # make directories if they don't exist
     check_make_dir(review_dir_path)
 
@@ -286,24 +354,34 @@ def main():
         icc_profile = f.read()
 
     # extract reference/target color mask
-    if ref_path.endswith('.tsv'):
-        ref_color_matrix = read_ref_color_matrix(ref_path)
+    if img_format in RAW_SUFFIX_LST + TIF_PNG_SUFFIX_LST \
+        and ref_path.lower().endswith(img_format.lower()):
+        ref_color_matrix = get_ref_color_matrix(
+            ref_path,
+            img_format,
+            ADAPTIVE_METHOD,
+            BLOCK_SIZE,
+            RADIUS,
+            MIN_SIZE,
+            RAW_SUFFIX_LST,
+            TIF_PNG_SUFFIX_LST,
+        )
+    elif ref_path.endswith('.tsv'):
+        ref_color_matrix = read_ref_color_matrix(
+            ref_path,
+        )
     else:
-        try:
-            ref_color_matrix = get_ref_color_matrix(ref_path)
-
-        except:
-            print(
-                f'[ERROR] <ref_path> must be either in a RAW format or in .tsv'
-                ' format',
-                file=sys.stderr,
-            )
-            sys.exit()
+        print(
+            f'[ERROR] <ref_path> must be either in {img_format} or .tsv'
+             ' format',
+             file=sys.stderr,
+        )
+        sys.exit()
 
     # apply proxy corrections
     rgb_corr = proxy_correct(
-        proxy_image_path, 
-        target_image_path, 
+        proxy_image_path,
+        target_image_path,
         ref_color_matrix,
     )
 
@@ -315,7 +393,6 @@ def main():
         icc_profile=icc_profile,
         compression='tiff_adobe_deflate',
     )
-
 
 if __name__ == '__main__':
     main()
