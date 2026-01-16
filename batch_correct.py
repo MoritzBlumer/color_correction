@@ -30,11 +30,6 @@ TIF_PNG_SUFFIX_LST = ['TIFF', 'tiff', 'TIF', 'tif', 'PNG', 'png']
 import argparse
 import sys
 import os
-import rawpy
-import cv2
-from plantcv import plantcv as pcv
-from PIL import Image
-import numpy as np
 
 
 
@@ -306,6 +301,13 @@ def main():
 
     # parse arguments
     cli()
+
+    # import remaining packages
+    import rawpy
+    import cv2
+    from plantcv import plantcv as pcv
+    from PIL import Image
+    import numpy as np
 
     # make directories if they don't exist
     check_make_dir(review_dir_path)
