@@ -308,6 +308,7 @@ def main():
     from plantcv import plantcv as pcv
     from PIL import Image
     import numpy as np
+    import matplotlib.pyplot as plt
 
     # make directories if they don't exist
     check_make_dir(review_dir_path)
@@ -366,6 +367,9 @@ def main():
             RAW_SUFFIX_LST,
             TIF_PNG_SUFFIX_LST,
         )
+
+        # close plt images from plantcv
+        plt.close('all')
 
         # apply correction
         rgb_corr = apply_color_correction(
